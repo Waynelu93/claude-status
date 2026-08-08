@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=800, initial-scale=1.0">
+  <title>Claude Status</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131c;
+      --surface2: #1c1c2e;
+      --border: #2a2a3e;
+      --text: #e8e8f0;
+      --text-dim: #7070a0;
+      --green: #00e676;
+      --amber: #ffab00;
+      --red: #ff5252;
+      --blue: #448aff;
+      --purple: #9575cd;
+      --gray: #546e7a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .brand-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .brand-name {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #clock {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 1px;
+    }
+
+    .session-count {
+      font-size: 10px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2px 8px;
+    }
+
+    /* ── Main grid ── */
+    main {
+      flex: 1;
+      padding: 10px 10px 6px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 8px;
+      align-content: start;
+    }
+
+    /* ── Session card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: 10px 10px 0 0;
+      background: var(--status-color, var(--border));
+      transition: background 0.4s;
+    }
+
+    .card.running   { --status-color: var(--green); border-color: #00e67633; box-shadow: 0 0 16px #00e67611; }
+    .card.waiting   { --status-color: var(--amber); border-color: #ffab0033; box-shadow: 0 0 16px #ffab0011; animation: waiting-glow 1.5s ease-in-out infinite; }
+    .card.attention { --status-color: var(--red);   border-color: #ff525233; box-shadow: 0 0 16px #ff525211; animation: attention-glow 1s ease-in-out infinite; }
+    .card.complete  { --status-color: var(--blue);  }
+    .card.started   { --status-color: var(--purple); }
+    .card.idle      { --status-color: var(--gray);   opacity: 0.7; }
+
+    @keyframes waiting-glow {
+      0%, 100% { box-shadow: 0 0 12px #ffab0018; }
+      50% { box-shadow: 0 0 24px #ffab0040; }
+    }
+
+    @keyframes attention-glow {
+      0%, 100% { box-shadow: 0 0 12px #ff525220; }
+      50% { box-shadow: 0 0 28px #ff525250; }
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .project-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.5px;
+    }
+
+    .session-id {
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+    }
+
+    .card.running   .status-badge { background: #00e67622; color: var(--green); }
+    .card.running   .badge-dot { background: var(--green); box-shadow: 0 0 4px var(--green); animation: blink 1s ease-in-out infinite; }
+    .card.waiting   .status-badge { background: #ffab0022; color: var(--amber); }
+    .card.waiting   .badge-dot { background: var(--amber); box-shadow: 0 0 4px var(--amber); animation: blink 0.8s ease-in-out infinite; }
+    .card.attention .status-badge { background: #ff525222; color: var(--red); }
+    .card.attention .badge-dot { background: var(--red); box-shadow: 0 0 4px var(--red); animation: blink 0.5s ease-in-out infinite; }
+    .card.complete  .status-badge { background: #448aff22; color: var(--blue); }
+    .card.complete  .badge-dot { background: var(--blue); }
+    .card.started   .status-badge { background: #9575cd22; color: var(--purple); }
+    .card.started   .badge-dot { background: var(--purple); }
+    .card.idle      .status-badge { background: #546e7a22; color: var(--gray); }
+    .card.idle      .badge-dot { background: var(--gray); }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .card-detail {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      line-height: 1.4;
+      word-break: break-all;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 7px;
+    }
+
+    .card-time {
+      font-size: 9px;
+      color: var(--text-dim);
+      opacity: 0.7;
+    }
+
+    /* ── Empty state ── */
+    .empty {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    .empty-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.4; }
+    .empty-text { font-size: 11px; opacity: 0.5; letter-spacing: 1px; }
+
+    /* ── Footer bar ── */
+    footer {
+      padding: 4px 14px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .footer-status {
+      font-size: 9px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    .refresh-indicator {
+      width: 60px;
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    .refresh-bar {
+      height: 100%;
+      background: var(--text-dim);
+      border-radius: 1px;
+      animation: refresh-countdown 4s linear infinite;
+    }
+
+    @keyframes refresh-countdown {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+
+    /* scrollbar */
+    main::-webkit-scrollbar { width: 3px; }
+    main::-webkit-scrollbar-track { background: transparent; }
+    main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <span class="brand-name">Claude Status</span>
+  </div>
+  <div class="header-right">
+    <span class="session-count" id="session-count">0 sessions</span>
+    <span id="clock">--:--</span>
+  </div>
+</header>
+
+<main id="cards"></main>
+
+<footer>
+  <span class="footer-status" id="footer-status">Connecting...</span>
+  <div class="refresh-indicator">
+    <div class="refresh-bar" id="refresh-bar"></div>
+  </div>
+</footer>
+
+<script>
+  const TOPIC = 'claude-ea36a092f2964a1d';
+  const REFRESH_MS = 4000;
+  const SESSION_IDLE_MS = 15 * 60 * 1000;
+
+  function classify(body) {
+    if (!body) return { cls: 'idle', label: 'IDLE', detail: '' };
+    if (body.startsWith('Running:'))              return { cls: 'running',   label: 'RUNNING',            detail: body.slice(8).trim() };
+    if (body.startsWith('Waiting for Approval:')) return { cls: 'waiting',   label: 'WAITING FOR APPROVAL', detail: body.slice(22).trim() };
+    if (body.startsWith('Complete:'))             return { cls: 'complete',  label: 'COMPLETE',            detail: body.slice(9).trim() };
+    if (body.startsWith('Needs Attention:'))      return { cls: 'attention', label: 'NEEDS ATTENTION',     detail: body.slice(16).trim() };
+    if (body === 'Session started')               return { cls: 'started',   label: 'STARTED',             detail: '' };
+    return { cls: 'idle', label: body.slice(0, 20).toUpperCase(), detail: '' };
+  }
+
+  function ago(ts) {
+    const d = Math.floor((Date.now() / 1000) - ts);
+    if (d < 60)   return `${d}s ago`;
+    if (d < 3600) return `${Math.floor(d / 60)}m ago`;
+    return `${Math.floor(d / 3600)}h ago`;
+  }
+
+  function parseTitle(raw) {
+    // "[projectname] #sessionid"  →  { project, session }
+    const m = raw ? raw.match(/^\[(.+?)\]\s*#?(.*)$/) : null;
+    return m ? { project: m[1], session: m[2] } : { project: raw || 'Unknown', session: '' };
+  }
+
+  async function fetchAndRender() {
+    const url = `https://ntfy.sh/${TOPIC}/json?poll=1&since=2h`;
+    let messages = [];
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      messages = text.trim().split('\n').filter(Boolean).map(l => {
+        try { return JSON.parse(l); } catch { return null; }
+      }).filter(Boolean);
+      document.getElementById('footer-status').textContent = `Updated ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+    } catch (e) {
+      document.getElementById('footer-status').textContent = `Error: ${e.message}`;
+    }
+
+    // Group by title, keep latest per group
+    const sessions = {};
+    for (const msg of messages) {
+      const key = msg.title || 'Unknown';
+      if (!sessions[key] || msg.time > sessions[key].time) {
+        sessions[key] = msg;
+      }
+    }
+
+    // Filter out idle-too-long sessions
+    const now = Date.now() / 1000;
+    const active = Object.values(sessions).filter(m => {
+      const st = classify(m.message);
+      // Always show non-complete, or complete within idle window
+      if (st.cls !== 'complete' && st.cls !== 'idle') return true;
+      return (now - m.time) * 1000 < SESSION_IDLE_MS;
+    });
+
+    const grid = document.getElementById('cards');
+    const count = document.getElementById('session-count');
+
+    if (active.length === 0) {
+      grid.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">◌</div>
+          <div class="empty-text">No active sessions</div>
+        </div>`;
+      count.textContent = '0 sessions';
+      return;
+    }
+
+    count.textContent = `${active.length} session${active.length !== 1 ? 's' : ''}`;
+
+    // Sort: attention → waiting → running → started → complete → idle
+    const order = { attention: 0, waiting: 1, running: 2, started: 3, complete: 4, idle: 5 };
+    active.sort((a, b) => {
+      const ca = classify(a.message), cb = classify(b.message);
+      return (order[ca.cls] ?? 9) - (order[cb.cls] ?? 9) || b.time - a.time;
+    });
+
+    grid.innerHTML = active.map(msg => {
+      const { cls, label, detail } = classify(msg.message);
+      const { project, session } = parseTitle(msg.title);
+      return `
+        <div class="card ${cls}">
+          <div class="card-header">
+            <div>
+              <div class="project-name">${esc(project)}</div>
+              <div class="session-id">#${esc(session)}</div>
+            </div>
+            <div class="status-badge">
+              <div class="badge-dot"></div>
+              ${esc(label)}
+            </div>
+          </div>
+          ${detail ? `<div class="card-detail">${esc(detail)}</div>` : ''}
+          <div class="card-footer">
+            <span class="card-time">${ago(msg.time)}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function updateClock() {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Restart animation so progress bar always feels in sync
+  function restartBar() {
+    const bar = document.getElementById('refresh-bar');
+    bar.style.animation = 'none';
+    bar.offsetHeight; // reflow
+    bar.style.animation = '';
+  }
+
+  updateClock();
+  fetchAndRender();
+  setInterval(() => { fetchAndRender(); restartBar(); }, REFRESH_MS);
+  setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
