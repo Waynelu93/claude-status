@@ -303,9 +303,18 @@
 </footer>
 
 <script>
-  const TOPIC = 'claude-ea36a092f2964a1d';
+  const TOPIC = new URLSearchParams(window.location.search).get('t') || '';
   const REFRESH_MS = 4000;
   const SESSION_IDLE_MS = 15 * 60 * 1000;
+
+  if (!TOPIC) {
+    document.body.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0a0a0f;color:#7070a0;font-family:monospace;gap:12px;">
+        <div style="font-size:32px;opacity:0.3">⬡</div>
+        <div style="font-size:11px;letter-spacing:2px;">MISSING TOKEN</div>
+        <div style="font-size:10px;opacity:0.5;">Add ?t=YOUR_TOPIC to the URL</div>
+      </div>`;
+  }
 
   function classify(body) {
     if (!body) return { cls: 'idle', label: 'IDLE', detail: '' };
