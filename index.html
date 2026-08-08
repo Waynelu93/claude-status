@@ -304,8 +304,9 @@
 
 <script>
   const TOPIC = new URLSearchParams(window.location.search).get('t') || '';
-  const REFRESH_MS = 4000;
+  const REFRESH_MS = 6000;
   const SESSION_IDLE_MS = 15 * 60 * 1000;
+  let lastFetchTime = 0;
 
   if (!TOPIC) {
     document.body.innerHTML = `
@@ -344,6 +345,10 @@
     let messages = [];
     try {
       const res = await fetch(url);
+      if (res.status === 429) {
+        // Rate limited — silently skip refresh, keep last rendered data
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       messages = text.trim().split('\n').filter(Boolean).map(l => {
@@ -352,6 +357,7 @@
       document.getElementById('footer-status').textContent = `Updated ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
     } catch (e) {
       document.getElementById('footer-status').textContent = `Error: ${e.message}`;
+      return;
     }
 
     // Group by project name, keep latest per group
@@ -364,13 +370,12 @@
       }
     }
 
-    // Filter out idle-too-long sessions
-    const now = Date.now() / 1000;
-    const active = Object.values(sessions).filter(m => {
+    // Show only active sessions (running, waiting, started)
+    // Hide completed and idle sessions
+    let active = Object.values(sessions).filter(m => {
       const st = classify(m.message);
-      // Always show non-complete, or complete within idle window
-      if (st.cls !== 'complete' && st.cls !== 'idle') return true;
-      return (now - m.time) * 1000 < SESSION_IDLE_MS;
+      // Only show sessions that are still running or waiting
+      return st.cls !== 'complete' && st.cls !== 'idle';
     });
 
     const grid = document.getElementById('cards');
@@ -386,14 +391,14 @@
       return;
     }
 
-    count.textContent = `${active.length} session${active.length !== 1 ? 's' : ''}`;
-
     // Sort: attention → waiting → running → started → complete → idle
     const order = { attention: 0, waiting: 1, running: 2, started: 3, complete: 4, idle: 5 };
     active.sort((a, b) => {
       const ca = classify(a.message), cb = classify(b.message);
       return (order[ca.cls] ?? 9) - (order[cb.cls] ?? 9) || b.time - a.time;
     });
+
+    count.textContent = `${active.length} session${active.length !== 1 ? 's' : ''}`;
 
     grid.innerHTML = active.map(msg => {
       const { cls, label, detail } = classify(msg.message);
