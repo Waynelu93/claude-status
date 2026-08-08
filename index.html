@@ -354,10 +354,11 @@
       document.getElementById('footer-status').textContent = `Error: ${e.message}`;
     }
 
-    // Group by title, keep latest per group
+    // Group by project name, keep latest per group
     const sessions = {};
     for (const msg of messages) {
-      const key = msg.title || 'Unknown';
+      const { project } = parseTitle(msg.title);
+      const key = project || 'Unknown';
       if (!sessions[key] || msg.time > sessions[key].time) {
         sessions[key] = msg;
       }
